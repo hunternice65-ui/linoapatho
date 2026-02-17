@@ -7,7 +7,7 @@ export const CODE_GS = `/**
 
 // --- ตั้งค่าระบบตรงนี้ (ต้องกำหนดค่าก่อนใช้งาน) ---
 var CHANNEL_ACCESS_TOKEN = 'ej7BKKcnSBmZ8rjthBBckrj+DHOVG7ikC7xaP5dwC0a7f3Ehj/hsoJwSI1ECBQ05Yeo/W7qt96WAQVKLJ3BJgaVR/h7ETGTgECf3H7GrrlFMhmUS97pwI29SAS0umcna0NHu98hBTiolCi8oB/CwPQdB04t89/1O/w1cDnyilFU='; 
-//var ADMIN_LINE_USER_IDS = ['YOUR_ADMIN_LINE_USER_ID']; // เช่น ['U123...', 'U456...']
+//var ADMIN_LINE_USER_IDS = ['Ufe0c7b62214f28847e54440cb58e7267']; // เช่น ['U123...', 'U456...']
 var MY_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx1V3_7nHvD2PgkYWJPlGdBtE5ApwP0APWnydWudrqGDtZfIikxY-BsXasWR-C6ZR3X/exec';
 
 var HEADERS = ['id', 'lineUserId', 'message', 'status', 'assignedTo', 'reply', 'createdAt', 'repliedAt', 'source', 'contactInfo', 'subject'];
