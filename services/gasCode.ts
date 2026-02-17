@@ -1,20 +1,17 @@
 
 export const CODE_GS = `/**
  * ==============================================================================
- * LINE OA Internal Request System (v2.7)
+ * LINE OA Internal Request System (v2.8)
  * ==============================================================================
  */
 
-// --- ตั้งค่าระบบตรงนี้ (ต้องกำหนดค่าก่อนใช้งาน) ---
+// --- ตั้งค่าระบบตรงนี้ (ต้องกำหนดค่าให้ถูกต้อง) ---
 var CHANNEL_ACCESS_TOKEN = 'ej7BKKcnSBmZ8rjthBBckrj+DHOVG7ikC7xaP5dwC0a7f3Ehj/hsoJwSI1ECBQ05Yeo/W7qt96WAQVKLJ3BJgaVR/h7ETGTgECf3H7GrrlFMhmUS97pwI29SAS0umcna0NHu98hBTiolCi8oB/CwPQdB04t89/1O/w1cDnyilFU='; 
-//var ADMIN_LINE_USER_IDS = ['Ufe0c7b62214f28847e54440cb58e7267']; // เช่น ['U123...', 'U456...']
+var ADMIN_LINE_USER_IDS = ['Ufe0c7b62214f28847e54440cb58e7267']; // ใส่ User ID ของ Admin ในอาร์เรย์นี้
 var MY_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyZFth_laMfnFkWCWFX9Q03Q0WS7AyiCLfzbskCFNk6x4p2GFAZhHy1QJuDOcE8Dp3N/exec';
 
 var HEADERS = ['id', 'lineUserId', 'message', 'status', 'assignedTo', 'reply', 'createdAt', 'repliedAt', 'source', 'contactInfo', 'subject'];
 
-/**
- * ฟังก์ชันหลักในการรับข้อมูลจาก LINE Webhook และ Web Form
- */
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -26,7 +23,6 @@ function doPost(e) {
 
     var action = e.parameter.action || postData.action;
     
-    // จัดการการตอบกลับจากหน้า Dashboard
     if (action === 'reply') {
       var res = replyToUser(
         e.parameter.userId || postData.userId, 
@@ -37,24 +33,27 @@ function doPost(e) {
       return createJsonResponse(res);
     }
 
-    // จัดการการส่งฟอร์มจากหน้าเว็บ
     if (action === 'submitForm') {
       var sheet = getOrCreateSheet('Requests');
       var id = 'FORM-' + new Date().getTime();
       var subject = postData.subject || 'คำขอใช้บริการ';
       var contact = postData.contact || '-';
       var message = postData.message || '-';
-      var lineUid = postData.lineUserId || 'FORM_USER';
+      var lineUid = postData.lineUserId || 'DIRECT_WEB_USER';
       
       sheet.appendRow([id, lineUid, message, 'new', '', '', new Date(), '', 'form', contact, subject]);
       
-      // ส่งแจ้งเตือนไปยังกลุ่ม Admin
-      sendToAllAdmins("📝 ฟอร์มใหม่: " + subject + "\\nผู้ติดต่อ: " + contact + "\\nข้อความ: " + message);
+      // 1. ส่งแจ้งเตือนหา Admin
+      sendToAllAdmins("📝 มีฟอร์มใหม่เข้ามา!\\nเรื่อง: " + subject + "\\nผู้ติดต่อ: " + contact + "\\nรายละเอียด: " + message);
+      
+      // 2. ส่งข้อความยืนยันหาผู้ใช้ (ถ้ามี LINE ID)
+      if (lineUid && lineUid !== 'DIRECT_WEB_USER' && lineUid.indexOf('U') === 0) {
+        sendPushMessage(lineUid, "✅ ได้รับข้อมูลการแจ้งเรื่อง [" + subject + "] ของคุณเรียบร้อยแล้ว\\nเจ้าหน้าที่จะดำเนินการตรวจสอบโดยเร็วที่สุด");
+      }
       
       return createJsonResponse({success: true, id: id});
     }
 
-    // จัดการ Webhook จาก LINE
     if (e.postData && e.postData.contents && !action) {
       var data = JSON.parse(e.postData.contents);
       if (data.events && data.events.length > 0) {
@@ -62,7 +61,7 @@ function doPost(e) {
         var senderId = event.source.userId;
 
         if (event.type === 'follow') {
-          sendPushMessage(senderId, "ยินดีต้อนรับ! ขอบคุณที่เพิ่มเราเป็นเพื่อน\\n\\nคุณสามารถแจ้งบริการและติดตามสถานะได้ที่ลิงก์นี้:\\n" + MY_WEB_APP_URL + "?userId=" + senderId);
+          sendPushMessage(senderId, "ยินดีต้อนรับสู่ระบบแจ้งบริการภายใน\\n\\nคลิกที่นี่เพื่อแจ้งเรื่อง:\\n" + MY_WEB_APP_URL + "?userId=" + senderId + "&view=form");
           return createJsonResponse({status: 'ok'});
         }
 
@@ -70,11 +69,8 @@ function doPost(e) {
           var sheet = getOrCreateSheet('Requests');
           var messageId = event.message.id;
           var userMessage = event.message.text;
-          
           sheet.appendRow([messageId, senderId, userMessage, 'new', '', '', new Date(), '', 'line', '', 'LINE Message']);
-          
-          sendToAllAdmins("💬 ข้อความ LINE ใหม่\\nจาก: " + senderId.substring(0,8) + "...\\nข้อความ: " + userMessage);
-          
+          sendToAllAdmins("💬 ข้อความใหม่จาก LINE\\nจาก ID: " + senderId.substring(0,8) + "...\\nข้อความ: " + userMessage);
           return createJsonResponse({status: 'success'});
         }
       }
@@ -121,21 +117,15 @@ function doGet(e) {
     return createJsonResponse(json);
   }
 
-  return HtmlService.createHtmlOutput('<h1>LINE OA Internal API v2.7 Active</h1>');
+  return HtmlService.createHtmlOutput('<h1>LINE OA API v2.8 Active</h1>');
 }
 
-/**
- * ส่งข้อความแจ้งเตือนไปยัง Admin ทุกคนที่ระบุไว้ใน ADMIN_LINE_USER_IDS
- */
 function sendToAllAdmins(text) {
-  // ตรวจสอบว่าตัวแปรถูกประกาศไว้หรือไม่ (ป้องกัน error "not defined")
-  if (typeof ADMIN_LINE_USER_IDS === 'undefined' || !ADMIN_LINE_USER_IDS || ADMIN_LINE_USER_IDS.length === 0) {
-    console.warn('ADMIN_LINE_USER_IDS is not defined or empty');
-    return;
-  }
+  if (typeof ADMIN_LINE_USER_IDS === 'undefined' || !ADMIN_LINE_USER_IDS || ADMIN_LINE_USER_IDS.length === 0) return;
   
+  // กรองเฉพาะ ID ที่น่าจะถูกต้อง
   var validIds = ADMIN_LINE_USER_IDS.filter(function(id) { 
-    return id && id !== 'YOUR_ADMIN_LINE_USER_ID' && id.length > 10; 
+    return id && id.length > 10 && id.indexOf('U') === 0; 
   });
   
   if (validIds.length === 0) return;
@@ -143,14 +133,8 @@ function sendToAllAdmins(text) {
   var url = 'https://api.line.me/v2/bot/message/multicast';
   UrlFetchApp.fetch(url, {
     method: 'post',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN 
-    },
-    payload: JSON.stringify({ 
-      to: validIds, 
-      messages: [{ type: 'text', text: '🔔 [Admin Alert]\\n' + text }] 
-    }),
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN },
+    payload: JSON.stringify({ to: validIds, messages: [{ type: 'text', text: '🔔 [ADMIN ALERT]\\n' + text }] }),
     muteHttpExceptions: true
   });
 }
@@ -159,17 +143,14 @@ function sendPushMessage(userId, text) {
   var url = 'https://api.line.me/v2/bot/message/push';
   UrlFetchApp.fetch(url, {
     method: 'post',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN 
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN },
     payload: JSON.stringify({ to: userId, messages: [{ type: 'text', text: text }] }),
     muteHttpExceptions: true
   });
 }
 
 function replyToUser(userId, text, messageId, adminUsername) {
-  sendPushMessage(userId, "🔔 ตอบกลับจากเจ้าหน้าที่:\\n" + text);
+  sendPushMessage(userId, "📢 ตอบกลับจาก " + adminUsername + ":\\n" + text);
   var sheet = getOrCreateSheet('Requests');
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
