@@ -18,4 +18,4 @@ export interface AdminUser {
   role: string;
 }
 
-export type ViewState = 'login' | 'dashboard' | 'setup' | 'public_form' | 'user_landing';
+export type ViewState = 'login' | 'dashboard' | 'public_form' | 'user_landing';
