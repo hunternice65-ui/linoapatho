@@ -1,0 +1,5 @@
+{
+  "name": "LINE OA Internal Manager",
+  "description": "A comprehensive dashboard for managing internal LINE Official Account requests, featuring a React-based interface and the complete Google Apps Script backend code for seamless integration with Google Sheets.",
+  "requestFramePermissions": []
+}
