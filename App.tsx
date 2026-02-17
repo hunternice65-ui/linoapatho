@@ -8,7 +8,7 @@ import UserLanding from './components/UserLanding';
 import { LineRequest, ViewState } from './types';
 
 const APP_CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbx1V3_7nHvD2PgkYWJPlGdBtE5ApwP0APWnydWudrqGDtZfIikxY-BsXasWR-C6ZR3X/exec'
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbyZFth_laMfnFkWCWFX9Q03Q0WS7AyiCLfzbskCFNk6x4p2GFAZhHy1QJuDOcE8Dp3N/exec'
 };
 
 const App: React.FC = () => {
