@@ -3,10 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import ReplyModal from './components/ReplyModal';
-import SetupGuide from './components/SetupGuide';
 import PublicForm from './components/PublicForm';
 import UserLanding from './components/UserLanding';
 import { LineRequest, ViewState } from './types';
+
+const APP_CONFIG = {
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbx1V3_7nHvD2PgkYWJPlGdBtE5ApwP0APWnydWudrqGDtZfIikxY-BsXasWR-C6ZR3X/exec'
+};
 
 const App: React.FC = () => {
   const [viewState, setViewState] = useState<ViewState>('user_landing');
@@ -18,9 +21,7 @@ const App: React.FC = () => {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   
-  const [gasUrl, setGasUrl] = useState(() => {
-    return localStorage.getItem('line_gas_url') || '';
-  });
+  const gasUrl = APP_CONFIG.GAS_URL;
 
   const navigateTo = (view: ViewState, params: Record<string, string> = {}) => {
     setViewState(view);
@@ -43,9 +44,7 @@ const App: React.FC = () => {
   };
 
   const fetchRequests = useCallback(async () => {
-    if (!gasUrl || gasUrl.includes('REPLACE') || !gasUrl.startsWith('http')) {
-      return;
-    }
+    if (!gasUrl) return;
 
     setIsLoading(true);
     setError('');
@@ -68,7 +67,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Fetch error:', err);
-      setError(`ไม่สามารถเชื่อมต่อ Google Sheets ได้: ${err.message}`);
+      setError(`ไม่สามารถเชื่อมต่อข้อมูลได้: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +79,6 @@ const App: React.FC = () => {
     const userIdFromUrl = params.get('userId');
     const savedUserId = localStorage.getItem('line_current_user_id');
 
-    // ถ้าเจอ userId ใน URL ให้จำไว้ทันที
     if (userIdFromUrl) {
       localStorage.setItem('line_current_user_id', userIdFromUrl);
     }
@@ -97,7 +95,6 @@ const App: React.FC = () => {
         setViewState('login');
       }
     } else if (effectiveUserId) {
-      // ถ้าเป็นเพื่อนแล้ว (มี userId) ให้ไปหน้าแบบฟอร์มเลย
       setViewState('public_form');
     } else {
       setViewState('user_landing');
@@ -130,12 +127,6 @@ const App: React.FC = () => {
     setCurrentUser(null);
     localStorage.removeItem('line_admin_user');
     navigateTo('login', { view: 'admin' });
-  };
-
-  const saveGasUrl = (url: string) => {
-    const cleanUrl = url.trim();
-    setGasUrl(cleanUrl);
-    localStorage.setItem('line_gas_url', cleanUrl);
   };
 
   if (viewState === 'user_landing') {
@@ -174,36 +165,32 @@ const App: React.FC = () => {
   return (
     <Layout user={currentUser || undefined} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
       <div className="flex flex-col gap-6">
-        {activeTab === 'setup' ? (
-          <div className="space-y-6">
-            <section className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-xl text-white">
-              <h3 className="text-2xl font-black mb-2">Configure Web App URL</h3>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input type="text" value={gasUrl} onChange={(e) => saveGasUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="flex-1 px-6 py-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 outline-none text-white text-sm" />
-                <button onClick={fetchRequests} className="bg-white text-indigo-600 px-10 py-4 rounded-2xl text-sm font-black shadow-lg">Save & Sync</button>
-              </div>
-            </section>
-            <SetupGuide />
+        <div className="flex justify-between items-end mb-4 px-2">
+          <div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Admin Console</h2>
+            <p className="text-slate-500 font-medium">จัดการคำขอและตอบกลับผู้ใช้ผ่าน LINE</p>
           </div>
-        ) : (
-          <>
-            <div className="flex justify-between items-end mb-4 px-2">
-              <div>
-                <h2 className="text-4xl font-black text-slate-900 tracking-tight">Admin Console</h2>
-                <p className="text-slate-500 font-medium">จัดการคำขอและตอบกลับผู้ใช้ผ่าน LINE</p>
-              </div>
-              <button onClick={fetchRequests} disabled={isLoading} className="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold active:scale-95">{isLoading ? 'Loading...' : 'Refresh Data'}</button>
-            </div>
-            <Dashboard requests={requests} onReply={(req) => setSelectedRequest(req)} />
-          </>
+          <button onClick={fetchRequests} disabled={isLoading} className="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold active:scale-95 hover:bg-slate-50 transition shadow-sm">
+            {isLoading ? 'กำลังโหลด...' : 'รีเฟรชข้อมูล'}
+          </button>
+        </div>
+        {error && (
+          <div className="p-4 bg-red-50 text-red-700 text-sm rounded-2xl border border-red-100 font-bold mb-4">
+            {error}
+          </div>
         )}
+        <Dashboard requests={requests} onReply={(req) => setSelectedRequest(req)} />
       </div>
       {selectedRequest && <ReplyModal request={selectedRequest} onClose={() => setSelectedRequest(null)} onSubmit={async (reply) => {
         setIsLoading(true);
         try {
           const url = new URL(gasUrl);
           url.searchParams.append('action', 'reply');
-          await fetch(url.toString(), { method: 'POST', body: JSON.stringify({ action: 'reply', userId: selectedRequest.lineUserId, text: reply, messageId: selectedRequest.id, admin: currentUser }) });
+          const response = await fetch(url.toString(), { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'reply', userId: selectedRequest.lineUserId, text: reply, messageId: selectedRequest.id, admin: currentUser }) 
+          });
+          if (!response.ok) throw new Error('Reply submission failed');
           await fetchRequests();
           setSelectedRequest(null);
         } catch (e) { alert('ไม่สามารถส่งคำตอบได้'); } finally { setIsLoading(false); }
