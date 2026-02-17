@@ -76,6 +76,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isAdminView = params.get('view') === 'admin';
+    const isFormView = params.get('view') === 'form'; // ตรวจสอบว่ามาจาก Rich Menu หรือไม่
     const userIdFromUrl = params.get('userId');
     const savedUserId = localStorage.getItem('line_current_user_id');
 
@@ -94,7 +95,8 @@ const App: React.FC = () => {
       } else {
         setViewState('login');
       }
-    } else if (effectiveUserId) {
+    } else if (isFormView || effectiveUserId) {
+      // ถ้ากำหนด view=form หรือมี userId อยู่แล้ว ให้ไปหน้าแบบฟอร์มทันใจ
       setViewState('public_form');
     } else {
       setViewState('user_landing');
@@ -103,7 +105,9 @@ const App: React.FC = () => {
     const handlePopState = () => {
       const p = new URLSearchParams(window.location.search);
       const uid = p.get('userId') || localStorage.getItem('line_current_user_id');
-      if (uid) setViewState('public_form');
+      const isForm = p.get('view') === 'form';
+      
+      if (isForm || uid) setViewState('public_form');
       else if (p.get('view') === 'admin') setViewState(localStorage.getItem('line_admin_user') ? 'dashboard' : 'login');
       else setViewState('user_landing');
     };
